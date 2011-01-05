@@ -1,0 +1,7 @@
+; $Id$
+name = "FormAPI Test"
+description = "Support module for Form API tests."
+package = Testing
+version = VERSION
+core = 7.x
+hidden = TRUE
