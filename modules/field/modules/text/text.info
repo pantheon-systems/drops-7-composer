@@ -1,0 +1,9 @@
+; $Id$
+name = Text
+description = Defines simple text field types.
+package = Core
+version = VERSION
+core = 7.x
+dependencies[] = field
+files[] = text.test
+required = TRUE

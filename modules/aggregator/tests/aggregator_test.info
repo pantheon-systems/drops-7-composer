@@ -1,0 +1,7 @@
+; $Id$
+name = "Aggregator module tests"
+description = "Support module for aggregator related testing."
+package = Testing
+version = VERSION
+core = 7.x
+hidden = TRUE
