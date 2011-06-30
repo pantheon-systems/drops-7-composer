@@ -1,4 +1,8 @@
 
+Drupal 7.3, 2011-06-29
+----------------------
+- Fixed security issue (Access bypass), see SA-CORE-2011-002.
+
 Drupal 7.2, 2011-05-25
 ----------------------
 - Added a default .gitignore file.
@@ -235,6 +239,9 @@ Drupal 7.0, 2011-01-05
     * Added queue API support to cron API.
     * Added a locking framework to coordinate long-running operations across
       requests.
+
+Drupal 6.23-dev, xxxx-xx-xx (development release)
+-----------------------
 
 Drupal 6.22, 2011-05-25
 -----------------------
