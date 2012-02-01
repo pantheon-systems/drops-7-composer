@@ -1,14 +1,9 @@
-/**
- * @file
- * Attaches behaviors for the Contextual module.
- */
-
 (function ($) {
 
 Drupal.contextualLinks = Drupal.contextualLinks || {};
 
 /**
- * Attaches outline behavior for regions associated with contextual links.
+ * Attach outline behavior for regions associated with contextual links.
  */
 Drupal.behaviors.contextualLinks = {
   attach: function (context) {
