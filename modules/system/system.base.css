@@ -157,9 +157,12 @@ table.sticky-header {
 .progress .percentage {
   float: right; /* LTR */
 }
+.progress-disabled {
+  float: left; /* LTR */
+}
 /* Throbber */
 .ajax-progress {
-  display: inline-block;
+  float: left; /* LTR */
 }
 .ajax-progress .throbber {
   background: transparent url(../../misc/throbber.gif) no-repeat 0px -18px;
@@ -167,9 +170,6 @@ table.sticky-header {
   height: 15px;
   margin: 2px;
   width: 15px;
-}
-.ajax-progress .message {
-  padding-left: 20px;
 }
 tr .ajax-progress .throbber {
   margin: 0 2px;
