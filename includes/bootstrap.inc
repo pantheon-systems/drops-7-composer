@@ -8,7 +8,7 @@
 /**
  * The current system version.
  */
-define('VERSION', '7.58');
+define('VERSION', '7.61');
 
 /**
  * Core API compatibility.
@@ -2819,6 +2819,11 @@ function _drupal_bootstrap_variables() {
       unset($_GET['destination']);
       unset($_REQUEST['destination']);
     }
+    // Use the DrupalRequestSanitizer to ensure that the destination's query
+    // parameters are not dangerous.
+    if (isset($_GET['destination'])) {
+      DrupalRequestSanitizer::cleanDestination();
+    }
     // If there's still something in $_REQUEST['destination'] that didn't come
     // from $_GET, check it too.
     if (isset($_REQUEST['destination']) && (!isset($_GET['destination']) || $_REQUEST['destination'] != $_GET['destination']) && url_is_external($_REQUEST['destination'])) {
@@ -3821,8 +3826,12 @@ function _drupal_shutdown_function() {
   chdir(DRUPAL_ROOT);
 
   try {
-    while (list($key, $callback) = each($callbacks)) {
+    // Manually iterate over the array instead of using a foreach loop.
+    // A foreach operates on a copy of the array, so any shutdown functions that
+    // were added from other shutdown functions would never be called.
+    while ($callback = current($callbacks)) {
       call_user_func_array($callback['callback'], $callback['arguments']);
+      next($callbacks);
     }
   }
   catch (Exception $exception) {
