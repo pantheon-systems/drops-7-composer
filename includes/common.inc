@@ -391,7 +391,7 @@ function drupal_add_feed($url = NULL, $title = '') {
  */
 function drupal_get_feeds($delimiter = "\n") {
   $feeds = drupal_add_feed();
-  return implode($feeds, $delimiter);
+  return implode($delimiter, $feeds);
 }
 
 /**
@@ -633,7 +633,7 @@ function drupal_parse_url($url) {
  *   The Drupal path to encode.
  */
 function drupal_encode_path($path) {
-  return str_replace('%2F', '/', rawurlencode($path));
+  return str_replace('%2F', '/', rawurlencode((string) $path));
 }
 
 /**
@@ -684,7 +684,10 @@ function drupal_goto($path = '', array $options = array(), $http_response_code =
   // We do not allow absolute URLs to be passed via $_GET, as this can be an attack vector.
   if (isset($_GET['destination']) && !url_is_external($_GET['destination'])) {
     $destination = drupal_parse_url($_GET['destination']);
-    $path = $destination['path'];
+    // Double check the path derived by drupal_parse_url() is not external.
+    if (!url_is_external($destination['path'])) {
+      $path = $destination['path'];
+    }
     $options['query'] = $destination['query'];
     $options['fragment'] = $destination['fragment'];
   }
@@ -940,7 +943,7 @@ function drupal_http_request($url, array $options = array()) {
   // or PUT request. Some non-standard servers get confused by Content-Length in
   // at least HEAD/GET requests, and Squid always requires Content-Length in
   // POST/PUT requests.
-  $content_length = strlen($options['data']);
+  $content_length = strlen((string) $options['data']);
   if ($content_length > 0 || $options['method'] == 'POST' || $options['method'] == 'PUT') {
     $options['headers']['Content-Length'] = $content_length;
   }
@@ -1016,7 +1019,7 @@ function drupal_http_request($url, array $options = array()) {
   $result->headers = array();
 
   // Parse the response headers.
-  while ($line = trim(array_shift($response))) {
+  while ($line = trim((string) array_shift($response))) {
     list($name, $value) = explode(':', $line, 2);
     $name = strtolower($name);
     if (isset($result->headers[$name]) && $name == 'set-cookie') {
@@ -1556,7 +1559,7 @@ function _filter_xss_split($m, $store = FALSE) {
     return '&lt;';
   }
 
-  if (!preg_match('%^<\s*(/\s*)?([a-zA-Z0-9\-]+)([^>]*)>?|(<!--.*?-->)$%', $string, $matches)) {
+  if (!preg_match('%^<\s*(/\s*)?([a-zA-Z0-9\-]+)\s*([^>]*)>?|(<!--.*?-->)$%', $string, $matches)) {
     // Seriously malformed.
     return '';
   }
@@ -1615,7 +1618,13 @@ function _filter_xss_attributes($attr) {
         // Attribute name, href for instance.
         if (preg_match('/^([-a-zA-Z]+)/', $attr, $match)) {
           $attrname = strtolower($match[1]);
-          $skip = ($attrname == 'style' || substr($attrname, 0, 2) == 'on');
+          $skip = (
+            $attrname == 'style' ||
+            substr($attrname, 0, 2) == 'on' ||
+            substr($attrname, 0, 1) == '-' ||
+            // Ignore long attributes to avoid unnecessary processing overhead.
+            strlen($attrname) > 96
+          );
           $working = $mode = 1;
           $attr = preg_replace('/^[-a-zA-Z]+/', '', $attr);
         }
@@ -1907,7 +1916,7 @@ function format_plural($count, $singular, $plural, array $args = array(), array 
  */
 function parse_size($size) {
   $unit = preg_replace('/[^bkmgtpezy]/i', '', $size); // Remove the non-unit characters from the size.
-  $size = preg_replace('/[^0-9\.]/', '', $size); // Remove the non-numeric characters from the size.
+  $size = (float) preg_replace('/[^0-9\.]/', '', $size); // Remove the non-numeric characters from the size.
   if ($unit) {
     // Find the position of the unit in the ordered string which is the power of magnitude to multiply a kilobyte by.
     return round($size * pow(DRUPAL_KILOBYTE, stripos('bkmgtpezy', $unit[0])));
@@ -1986,7 +1995,7 @@ function format_interval($interval, $granularity = 2, $langcode = NULL) {
     $key = explode('|', $key);
     if ($interval >= $value) {
       $output .= ($output ? ' ' : '') . format_plural(floor($interval / $value), $key[0], $key[1], array(), array('langcode' => $langcode));
-      $interval %= $value;
+      $interval = (int) $interval % $value;
       $granularity--;
     }
 
@@ -2299,7 +2308,7 @@ function url($path = NULL, array $options = array()) {
   // Strip leading slashes from internal paths to prevent them becoming external
   // URLs without protocol. /example.com should not be turned into
   // //example.com.
-  $path = ltrim($path, '/');
+  $path = ltrim((string) $path, '/');
 
   global $base_url, $base_secure_url, $base_insecure_url;
 
@@ -2326,6 +2335,7 @@ function url($path = NULL, array $options = array()) {
   }
   elseif (!empty($path) && !$options['alias']) {
     $language = isset($options['language']) && isset($options['language']->language) ? $options['language']->language : '';
+    require_once DRUPAL_ROOT . '/' . variable_get('path_inc', 'includes/path.inc');
     $alias = drupal_get_path_alias($original_path, $language);
     if ($alias != $original_path) {
       // Strip leading slashes from internal path aliases to prevent them
@@ -2336,7 +2346,7 @@ function url($path = NULL, array $options = array()) {
   }
 
   $base = $options['absolute'] ? $options['base_url'] . '/' : base_path();
-  $prefix = empty($path) ? rtrim($options['prefix'], '/') : $options['prefix'];
+  $prefix = empty($path) ? rtrim((string) $options['prefix'], '/') : $options['prefix'];
 
   // With Clean URLs.
   if (!empty($GLOBALS['conf']['clean_url'])) {
@@ -2380,6 +2390,7 @@ function url($path = NULL, array $options = array()) {
  *   Boolean TRUE or FALSE, where TRUE indicates an external path.
  */
 function url_is_external($path) {
+  $path = (string) $path;
   $colonpos = strpos($path, ':');
   // Some browsers treat \ as / so normalize to forward slashes.
   $path = str_replace('\\', '/', $path);
@@ -2686,6 +2697,19 @@ function drupal_deliver_html_page($page_callback_result) {
     drupal_add_http_header('X-Frame-Options', $frame_options);
   }
 
+  if (variable_get('block_interest_cohort', TRUE)) {
+    $permissions_policy = drupal_get_http_header('Permissions-Policy');
+    if (is_null($permissions_policy)) {
+      drupal_add_http_header('Permissions-Policy', 'interest-cohort=()');
+    }
+    else {
+      // Only add interest-cohort if the header does not contain it already.
+      if (strpos($permissions_policy, 'interest-cohort') === FALSE) {
+        drupal_add_http_header('Permissions-Policy', 'interest-cohort=()', TRUE);
+      }
+    }
+  }
+
   // Menu status constants are integers; page content is a string or array.
   if (is_int($page_callback_result)) {
     // @todo: Break these up into separate functions?
@@ -2921,12 +2945,12 @@ function base_path() {
 }
 
 /**
- * Adds a LINK tag with a distinct 'rel' attribute to the page's HEAD.
+ * Adds a LINK tag with distinct attributes to the page's HEAD.
  *
  * This function can be called as long the HTML header hasn't been sent, which
  * on normal pages is up through the preprocess step of theme('html'). Adding
- * a link will overwrite a prior link with the exact same 'rel' and 'href'
- * attributes.
+ * a link will overwrite a prior link with the exact same 'rel', 'href' and
+ * 'hreflang' attributes.
  *
  * @param $attributes
  *   Associative array of element attributes including 'href' and 'rel'.
@@ -2942,12 +2966,12 @@ function drupal_add_html_head_link($attributes, $header = FALSE) {
 
   if ($header) {
     // Also add a HTTP header "Link:".
-    $href = '<' . check_plain($attributes['href']) . '>;';
+    $href = '<' . $attributes['href'] . '>;';
     unset($attributes['href']);
     $element['#attached']['drupal_add_http_header'][] = array('Link',  $href . drupal_http_header_attributes($attributes), TRUE);
   }
 
-  drupal_add_html_head($element, 'drupal_add_html_head_link:' . $attributes['rel'] . ':' . $href);
+  drupal_add_html_head($element, 'drupal_add_html_head_link:' . $attributes['rel'] . ':' . (isset($attributes['hreflang']) ? "{$attributes['hreflang']}:" : '') . $href);
 }
 
 /**
@@ -3382,7 +3406,7 @@ function drupal_group_css($css) {
  * @see system_element_info()
  */
 function drupal_aggregate_css(&$css_groups) {
-  $preprocess_css = (variable_get('preprocess_css', FALSE) && (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update'));
+  $preprocess_css = (variable_get('preprocess_css', FALSE) && !defined('MAINTENANCE_MODE'));
 
   // For each group that needs aggregation, aggregate its items.
   foreach ($css_groups as $key => $group) {
@@ -3740,7 +3764,7 @@ function _drupal_build_css_path($matches, $base = NULL) {
   }
 
   // Prefix with base and remove '../' segments where possible.
-  $path = $_base . $matches[1];
+  $path = $_base . (isset($matches[1]) ? $matches[1] : '');
   $last = '';
   while ($path != $last) {
     $last = $path;
@@ -3841,8 +3865,10 @@ function drupal_load_stylesheet_content($contents, $optimize = FALSE) {
     // whitespace.
     // @see http://php.net/manual/regexp.reference.subpatterns.php
     $contents = preg_replace('<
+      # Do not strip any space from within single or double quotes
+        (' . $double_quot . '|' . $single_quot . ')
       # Strip leading and trailing whitespace.
-        \s*([@{};,])\s*
+      | \s*([@{};,])\s*
       # Strip only leading whitespace from:
       # - Closing parenthesis: Retain "@media (bar) and foo".
       | \s+([\)])
@@ -3850,11 +3876,11 @@ function drupal_load_stylesheet_content($contents, $optimize = FALSE) {
       # - Opening parenthesis: Retain "@media (bar) and foo".
       # - Colon: Retain :pseudo-selectors.
       | ([\(:])\s+
-    >xS',
-      // Only one of the three capturing groups will match, so its reference
+    >xSs',
+      // Only one of the four capturing groups will match, so its reference
       // will contain the wanted value and the references for the
       // two non-matching groups will be replaced with empty strings.
-      '$1$2$3',
+      '$1$2$3$4',
       $contents
     );
     // End the file with a new line.
@@ -4317,6 +4343,7 @@ function drupal_add_js($data = NULL, $options = NULL) {
           'data' => array(
             array('basePath' => base_path()),
             array('pathPrefix' => empty($prefix) ? '' : $prefix),
+            array('setHasJsCookie' => variable_get('set_has_js_cookie', FALSE) ? 1 : 0),
           ),
           'type' => 'setting',
           'scope' => 'header',
@@ -4495,7 +4522,7 @@ function drupal_get_js($scope = 'header', $javascript = NULL, $skip_alter = FALS
  * @see drupal_add_js()
  */
 function drupal_pre_render_scripts(array $elements) {
-  $preprocess_js = (variable_get('preprocess_js', FALSE) && (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update'));
+  $preprocess_js = (variable_get('preprocess_js', FALSE) && !defined('MAINTENANCE_MODE'));
 
   // A dummy query-string is added to filenames, to gain control over
   // browser-caching. The string changes on every update or full cache
@@ -5179,7 +5206,9 @@ function drupal_build_js_cache($files) {
 
     // Allow modules to act on the js_cache before writing to disk.
     drupal_alter('js_cache', $contents);
-
+    
+    // Remove JS source and source mapping urls or these may cause 404 errors.
+    $contents = preg_replace('/\/\/(#|@)\s(sourceURL|sourceMappingURL)=\s*(\S*?)\s*$/m', '', $contents);
     // Prefix filename to prevent blocking by firewalls which reject files
     // starting with "ad*".
     $filename = 'js_' . drupal_hash_base64($contents) . '.js';
@@ -6631,7 +6660,7 @@ function drupal_sort_title($a, $b) {
  * Checks if the key is a property.
  */
 function element_property($key) {
-  return $key[0] == '#';
+  return $key !== '' && is_string($key) && $key[0] == '#';
 }
 
 /**
@@ -6667,30 +6696,41 @@ function element_children(&$elements, $sort = FALSE) {
   $sort = isset($elements['#sorted']) ? !$elements['#sorted'] : $sort;
 
   // Filter out properties from the element, leaving only children.
-  $children = array();
+  $count = count($elements);
+  $child_weights = array();
+  $i = 0;
   $sortable = FALSE;
   foreach ($elements as $key => $value) {
-    if ($key === '' || $key[0] !== '#') {
-      $children[$key] = $value;
+    if (is_int($key) || $key === '' || $key[0] !== '#') {
       if (is_array($value) && isset($value['#weight'])) {
+        $weight = $value['#weight'];
         $sortable = TRUE;
       }
+      else {
+        $weight = 0;
+      }
+      // Support weights with up to three digit precision and conserve the
+      // insertion order.
+      $child_weights[$key] = floor($weight * 1000) + $i / $count;
     }
+    $i++;
   }
+
   // Sort the children if necessary.
   if ($sort && $sortable) {
-    uasort($children, 'element_sort');
+    asort($child_weights);
     // Put the sorted children back into $elements in the correct order, to
     // preserve sorting if the same element is passed through
     // element_children() twice.
-    foreach ($children as $key => $child) {
+    foreach ($child_weights as $key => $weight) {
+      $value = $elements[$key];
       unset($elements[$key]);
-      $elements[$key] = $child;
+      $elements[$key] = $value;
     }
     $elements['#sorted'] = TRUE;
   }
 
-  return array_keys($children);
+  return array_keys($child_weights);
 }
 
 /**
@@ -6918,7 +6958,7 @@ function drupal_array_set_nested_value(array &$array, array $parents, $value, $f
 function &drupal_array_get_nested_value(array &$array, array $parents, &$key_exists = NULL) {
   $ref = &$array;
   foreach ($parents as $parent) {
-    if (is_array($ref) && array_key_exists($parent, $ref)) {
+    if (is_array($ref) && (isset($ref[$parent]) || array_key_exists($parent, $ref))) {
       $ref = &$ref[$parent];
     }
     else {

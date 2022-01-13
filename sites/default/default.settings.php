@@ -247,6 +247,24 @@
 $databases = array();
 
 /**
+ * Quoting of identifiers in MySQL.
+ *
+ * To allow compatibility with newer versions of MySQL, Drupal will quote table
+ * names and some other identifiers. The ANSI standard character for identifier
+ * quoting is the double quote (") and that can be used by MySQL along with the
+ * sql_mode setting of ANSI_QUOTES. However, MySQL's own default is to use
+ * backticks (`). Drupal 7 uses backticks for compatibility. If you need to
+ * change this, you can do so with this variable. It's possible to switch off
+ * identifier quoting altogether by setting this variable to an empty string.
+ *
+ * @see https://www.drupal.org/project/drupal/issues/2978575
+ * @see https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
+ * @see \DatabaseConnection_mysql::setPrefix
+ * @see \DatabaseConnection_mysql::quoteIdentifier
+ */
+# $conf['mysql_identifier_quote_character'] = '"';
+
+/**
  * Access control for update.php script.
  *
  * If you are updating your Drupal installation using the update.php script but
@@ -305,7 +323,7 @@ $drupal_hash_salt = '';
  *
  * To see what PHP settings are possible, including whether they can be set at
  * runtime (by using ini_set()), read the PHP documentation:
- * http://www.php.net/manual/en/ini.list.php
+ * http://www.php.net/manual/ini.list.php
  * See drupal_environment_initialize() in includes/bootstrap.inc for required
  * runtime settings and the .htaccess file for non-runtime settings. Settings
  * defined there should not be duplicated here so as to avoid conflict issues.
@@ -341,7 +359,7 @@ ini_set('session.cookie_lifetime', 2000000);
  * output filter may not have sufficient memory to process it.  If you
  * experience this issue, you may wish to uncomment the following two lines
  * and increase the limits of these variables.  For more information, see
- * http://php.net/manual/en/pcre.configuration.php.
+ * http://php.net/manual/pcre.configuration.php.
  */
 # ini_set('pcre.backtrack_limit', 200000);
 # ini_set('pcre.recursion_limit', 200000);
@@ -617,15 +635,6 @@ $conf['404_fast_html'] = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML+RDFa 1.0//EN"
 # $conf['allow_authorize_operations'] = FALSE;
 
 /**
- * Smart start:
- *
- * If you would prefer to be redirected to the installation system when a
- * valid settings.php file is present but no tables are installed, remove
- * the leading hash sign below.
- */
-# $conf['pressflow_smart_start'] = TRUE;
-
-/**
  * Theme debugging:
  *
  * When debugging is enabled:
@@ -668,3 +677,108 @@ $conf['file_scan_ignore_directories'] = array(
   'node_modules',
   'bower_components',
 );
+
+/**
+ * Logging of user flood control events.
+ *
+ * Drupal's user module will place a temporary block on a given IP address or
+ * user account if there are excessive failed login attempts. By default these
+ * flood control events will be logged. This can be useful for identifying
+ * brute force login attacks. Set this variable to FALSE to disable logging, for
+ * example if you are using the dblog module and want to avoid database writes.
+ *
+ * @see user_login_final_validate()
+ * @see user_user_flood_control()
+ */
+# $conf['log_user_flood_control'] = FALSE;
+
+/**
+ * Opt out of variable_initialize() locking optimization.
+ *
+ * After lengthy discussion in https://www.drupal.org/node/973436 a change was
+ * made in variable_initialize() in order to avoid excessive waiting under
+ * certain conditions. Set this variable to TRUE in order to opt out of this
+ * optimization and revert to the original behaviour.
+ */
+# $conf['variable_initialize_wait_for_lock'] = FALSE;
+
+/**
+ * Opt in to field_sql_storage_field_storage_write() optimization.
+ *
+ * To reduce unnecessary writes field_sql_storage_field_storage_write() can skip
+ * fields where values have apparently not changed. To opt in to this
+ * optimization, set this variable to TRUE.
+ */
+$conf['field_sql_storage_skip_writing_unchanged_fields'] = TRUE;
+
+/**
+ * Use site name as display-name in outgoing mail.
+ *
+ * Drupal can use the site name (i.e. the value of the site_name variable) as
+ * the display-name when sending e-mail. For example this would mean the sender
+ * might be "Acme Website" <acme@example.com> as opposed to just the e-mail
+ * address alone. In order to avoid disruption this is not enabled by default
+ * for existing sites. The feature can be enabled by setting this variable to
+ * TRUE.
+ *
+ * @see https://tools.ietf.org/html/rfc2822
+ * @see drupal_mail()
+ */
+$conf['mail_display_name_site_name'] = TRUE;
+
+/**
+ * SameSite cookie attribute.
+ *
+ * This variable can be used to set a value for the SameSite cookie attribute.
+ *
+ * Versions of PHP before 7.3 have no native support for the SameSite attribute
+ * so it is emulated.
+ *
+ * The session.cookie-samesite setting in PHP 7.3 and later will be overridden
+ * by this variable for Drupal session cookies, and any other cookies managed
+ * with drupal_setcookie().
+ *
+ * Setting this variable to FALSE disables the SameSite attribute on cookies.
+ *
+ * @see drupal_setcookie()
+ * @see drupal_session_start()
+ * @see https://www.php.net/manual/en/session.configuration.php#ini.session.cookie-samesite
+ */
+# $conf['samesite_cookie_value'] = 'None';
+
+/**
+ * Add Permissions-Policy header to disable Google FLoC.
+ *
+ * By default, Drupal sends the 'Permissions-Policy: interest-cohort=()' header
+ * to disable Google's Federated Learning of Cohorts feature, introduced in
+ * Chrome 89.
+ *
+ * See https://en.wikipedia.org/wiki/Federated_Learning_of_Cohorts for more
+ * information about FLoC.
+ *
+ * If you don't wish to disable FLoC in Chrome, you can set this value
+ * to FALSE.
+ */
+# $conf['block_interest_cohort'] = TRUE;
+
+/**
+ * Retain legacy has_js cookie.
+ *
+ * Older releases of Drupal set a has_js cookie with a boolean value which
+ * server-side code can use to determine whether JavaScript is available.
+ *
+ * This functionality can be re-enabled by setting this variable to TRUE.
+ */
+# $conf['set_has_js_cookie'] = FALSE;
+
+/**
+ * Skip file system permissions hardening.
+ *
+ * The system module will periodically check the permissions of your site's
+ * site directory to ensure that it is not writable by the website user. For
+ * sites that are managed with a version control system, this can cause problems
+ * when files in that directory such as settings.php are updated, because the
+ * user pulling in the changes won't have permissions to modify files in the
+ * directory.
+ */
+# $conf['skip_permissions_hardening'] = TRUE;
